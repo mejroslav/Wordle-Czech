@@ -1,35 +1,15 @@
-from collections import defaultdict
+import os
+import time
 import random
+from collections import defaultdict
 
+from insensitivedict import *
 class Color:
     RESET = "\u001b[0m"
     GREEN = "\u001b[32m"
     YELLOW = "\u001b[33m"
     RED = "\u001b[31m"
 
-def rnd_word() -> str:
-    return "kočka".upper()
-
-translation_table = {
-    ord("Á"): ord("A"),
-    ord("É"): ord("E"),
-    ord("Ě"): ord("E"),
-    ord("Í"): ord("I"),
-    ord("Ó"): ord("O"),
-    ord("Ú"): ord("U"),
-    ord("Ů"): ord("U"),
-    ord("Ý"): ord("Y"),
-    ord("Č"): ord("C"),
-    ord("Ď"): ord("D"),
-    ord("Ň"): ord("N"),
-    ord("Ř"): ord("R"),
-    ord("Š"): ord("S"),
-    ord("Ť"): ord("T"),
-    ord("Ž"): ord("Z"),
-}
-def remove_diacritics(s: str) -> str:
-    """Remove hooks and dashes from a word or letter."""
-    return s.translate(translation_table)
 
 def rnd_word() -> str:
     """Return random czech word for wordle."""
@@ -37,16 +17,33 @@ def rnd_word() -> str:
         seznam = r.readlines()
         return random.choice(seznam).upper().strip()
 
+
+def print_intro():
+    print("""                                          ▄▄    ▄▄          
+                                        ▀███  ▀███          
+                                          ██    ██          
+▀██▀    ▄█    ▀██▀ ▄██▀██▄▀███▄███   ▄█▀▀███    ██   ▄▄█▀██ 
+  ██   ▄███   ▄█  ██▀   ▀██ ██▀ ▀▀ ▄██    ██    ██  ▄█▀   ██
+   ██ ▄█  ██ ▄█   ██     ██ ██     ███    ██    ██  ██▀▀▀▀▀▀
+    ███    ███    ██▄   ▄██ ██     ▀██    ██    ██  ██▄    ▄
+     █      █      ▀█████▀▄████▄    ▀████▀███▄▄████▄ ▀█████▀ """)
+    print("Created by Mejroslav")
+
+
 def game(word: str, tries: int):
-    correct_letters = [c for c in rnd_word()]
+    word = word.upper()
+    correct_letters = [c for c in word]
     used_words = [] # ukládání již použitých slov
+    used_letters = set() # ukládání již použitých písmen
     barvy = []
     pokusy = tries
     
-    while True:
-        print("Zbývá ještě {} pokusů".format(pokusy))
+    while pokusy>0:
+        time.sleep(1)
+        os.system("clear")
         print("".join(barvy))
-        
+        print("Zbývá ti ještě {} pokusů.".format(pokusy))
+        print("Použitá slova:", ", ".join(used_letters))
         barvy = [None]*5
         player_word = input("Hádej pětipísmenné slovo: ").upper()
         
@@ -55,35 +52,50 @@ def game(word: str, tries: int):
             continue
         if remove_diacritics(player_word) in [remove_diacritics(w) for w in used_words]:
             print("Toto slovo jsi již zkusil hádat.")
-            continue     
+            continue
+        if remove_diacritics(player_word) == remove_diacritics(word):
+            break
+        
         player_letters = [c for c in player_word]
         used_words.append(player_word)
-               
-        print("player_letters:", player_letters)
-        print("letters_correct", correct_letters)
-               
+        used_letters.add(remove_diacritics(player_word))
         # dictionary {letter: number of occurrences in word}
         letters_amount = defaultdict(int)
         for c in correct_letters:
-            letters_amount[c] += 1
+            letters_amount[remove_diacritics(c)] += 1
         
         for i in range(5):
-            letter = player_letters[i]
-            if letter == correct_letters[i]:
-                    barvy[i] = Color.GREEN + letter + Color.RESET
-                    letters_amount[letter] -= 1 # this character has been used
+            plr_ltr = player_letters[i]
+            cr_ltr = correct_letters[i]
+            
+            if remove_diacritics(plr_ltr) == remove_diacritics(cr_ltr) :
+                    barvy[i] = Color.GREEN + cr_ltr + Color.RESET # se správnou diakritikou
+                    letters_amount[remove_diacritics(plr_ltr)] -= 1 # this character has been used
+                    
         for i in range(5):
-            letter = player_letters[i]
-            if letter in letters_amount.keys() and letters_amount[letter] >  0:
-                barvy[i] = Color.YELLOW + letter + Color.RESET
-                letters_amount[letter] -= 1 # this character has been used
+            plr_ltr = player_letters[i]
+            cr_ltr = correct_letters[i]
+            
+            if remove_diacritics(plr_ltr) in letters_amount.keys() and letters_amount[remove_diacritics(plr_ltr)] >  0:
+                barvy[i] = Color.YELLOW + plr_ltr + Color.RESET
+                letters_amount[remove_diacritics(plr_ltr)] -= 1 # this character has been used
             if not barvy[i]:
-                barvy[i] = letter
-        
+                barvy[i] = plr_ltr
         pokusy -= 1
+        
+    #prohra
+    if pokusy == 0:
+        print("Bohužel jsi prohrál. Hledané slovo bylo: {}".format(word))
+    #výhra
+    if remove_diacritics(player_word) == remove_diacritics(word):
+        print("Vyhrál jsi! Hledané slovo bylo {}".format(word))
             
 def main():
-    game(rnd_word(),20)
+    print_intro()
+    pocet = 20
+    print("Počet pokusů: {}".format(pocet))
+    a = input("Pro spuštění stiskni libovolnou klávesu.")
+    game(rnd_word(), pocet)
 
 
 if __name__ == "__main__":
