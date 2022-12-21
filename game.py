@@ -38,18 +38,27 @@ def game(word: str, tries: int):
     barvy = []
     pokusy = tries
     
+    slovnik = set()
+    with open("pouze5.txt", "r") as r:
+        for line in r.readlines():
+            slovnik.add(remove_diacritics(line.strip().upper()))
+    
     while pokusy>0:
         time.sleep(1)
         os.system("clear")
         print("".join(barvy))
         print("Zbývá ti ještě {} pokusů.".format(pokusy))
         print("Použitá slova:", ", ".join(used_letters))
-        barvy = [None]*5
+        barvy = [" "]*5
         player_word = input("Hádej pětipísmenné slovo: ").upper()
         
         if len(player_word) != 5:
             print("Zadané slovo musí obsahovat právě pět písmen!")
             continue
+        if remove_diacritics(player_word) not in slovnik:
+            print("Slovník tohle slovo nezná.")
+            continue
+        
         if remove_diacritics(player_word) in [remove_diacritics(w) for w in used_words]:
             print("Toto slovo jsi již zkusil hádat.")
             continue
@@ -79,7 +88,7 @@ def game(word: str, tries: int):
             if remove_diacritics(plr_ltr) in letters_amount.keys() and letters_amount[remove_diacritics(plr_ltr)] >  0:
                 barvy[i] = Color.YELLOW + plr_ltr + Color.RESET
                 letters_amount[remove_diacritics(plr_ltr)] -= 1 # this character has been used
-            if not barvy[i]:
+            if barvy[i] == " ":
                 barvy[i] = plr_ltr
         pokusy -= 1
         
@@ -91,6 +100,7 @@ def game(word: str, tries: int):
         print("Vyhrál jsi! Hledané slovo bylo {}".format(word))
             
 def main():
+    
     print_intro()
     pocet = 20
     print("Počet pokusů: {}".format(pocet))
