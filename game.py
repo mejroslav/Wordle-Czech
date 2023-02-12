@@ -3,7 +3,9 @@ import time
 import random
 from collections import defaultdict
 
-from insensitivedict import *
+from insensitivedict import remove_diacritics
+
+
 class Color:
     RESET = "\u001b[0m"
     GREEN = "\u001b[32m"
@@ -11,102 +13,141 @@ class Color:
     RED = "\u001b[31m"
 
 
-def rnd_word() -> str:
-    """Return random czech word for wordle."""
-    with open("pouze5.txt", "r") as r:
-        seznam = r.readlines()
-        return random.choice(seznam).upper().strip()
+class Game:
+    def __init__(self) -> None:
+        self.print_intro()
+        self.setInitValues()
+        self.runGame()
 
-
-def print_intro():
-    print("""                                          ▄▄    ▄▄          
+    def print_intro(self):
+        print(
+            """                                          ▄▄    ▄▄          
                                         ▀███  ▀███          
                                           ██    ██          
 ▀██▀    ▄█    ▀██▀ ▄██▀██▄▀███▄███   ▄█▀▀███    ██   ▄▄█▀██ 
   ██   ▄███   ▄█  ██▀   ▀██ ██▀ ▀▀ ▄██    ██    ██  ▄█▀   ██
    ██ ▄█  ██ ▄█   ██     ██ ██     ███    ██    ██  ██▀▀▀▀▀▀
     ███    ███    ██▄   ▄██ ██     ▀██    ██    ██  ██▄    ▄
-     █      █      ▀█████▀▄████▄    ▀████▀███▄▄████▄ ▀█████▀ """)
-    print("Created by Mejroslav")
+     █      █      ▀█████▀▄████▄    ▀████▀███▄▄████▄ ▀█████▀ """
+        )
+        print("Created by Mejroslav")
 
+    def setInitValues(self):
+        self.dict = self.loadDictionary()
+        self.correctWord = self.rnd_word()
+        self.correctLetters = [c for c in self.correctWord]
+        self.usedWords = []  # ukládání již použitých slov
+        self.usedLetters = set()  # ukládání již použitých písmen
+        self.coloredLetters = []
+        self.attempts = 20
 
-def game(word: str, tries: int):
-    word = word.upper()
-    correct_letters = [c for c in word]
-    used_words = [] # ukládání již použitých slov
-    used_letters = set() # ukládání již použitých písmen
-    barvy = []
-    pokusy = tries
-    
-    slovnik = set()
-    with open("pouze5.txt", "r") as r:
-        for line in r.readlines():
-            slovnik.add(remove_diacritics(line.strip().upper()))
-    
-    while pokusy>0:
-        time.sleep(1)
-        os.system("clear")
-        print("".join(barvy))
-        print("Zbývá ti ještě {} pokusů.".format(pokusy))
-        print("Použitá slova:", ", ".join(used_letters))
-        barvy = [" "]*5
-        player_word = input("Hádej pětipísmenné slovo: ").upper()
-        
-        if len(player_word) != 5:
-            print("Zadané slovo musí obsahovat právě pět písmen!")
-            continue
-        if remove_diacritics(player_word) not in slovnik:
-            print("Slovník tohle slovo nezná.")
-            continue
-        
-        if remove_diacritics(player_word) in [remove_diacritics(w) for w in used_words]:
-            print("Toto slovo jsi již zkusil hádat.")
-            continue
-        if remove_diacritics(player_word) == remove_diacritics(word):
+    def loadDictionary(self) -> dict[str]:
+        slovnik = set()
+        with open("pouze5.txt", "r") as r:
+            for line in r.readlines():
+                slovnik.add(remove_diacritics(line.strip().upper()))
+        return slovnik
+
+    def showStatistics(self):
+        print("".join(self.coloredLetters))
+        print("Zbývá ti ještě {} pokusů.".format(self.attempts))
+        print("Použitá slova:", ", ".join(self.usedLetters))
+
+    def getUserWord(self):
+        while True:
+            userWord: str = str(input("Hádej pětipísmenné slovo: ")).upper()
+
+            if len(userWord) != 5:
+                print("Zadané slovo musí obsahovat právě pět písmen!")
+                continue
+            if remove_diacritics(userWord) not in self.dict:
+                print("Slovník tohle slovo nezná.")
+                continue
+            if self.alreadyGuessed(userWord):
+                print("Toto slovo jsi již zkusil hádat.")
+                continue
             break
-        
-        player_letters = [c for c in player_word]
-        used_words.append(player_word)
-        used_letters.add(remove_diacritics(player_word))
-        # dictionary {letter: number of occurrences in word}
+        return userWord
+
+    def alreadyGuessed(self, guess: str) -> bool:
+        return remove_diacritics(guess) in [
+            remove_diacritics(w) for w in self.usedWords
+        ]
+
+    def update(self):
+        self.player_letters = [c for c in self.playerGuess]
+        self.usedWords.append(self.playerGuess)
+        self.usedLetters.add(remove_diacritics(self.playerGuess))
+
+    def updateColoredLetters(self):
+        self.coloredLetters = [" "] * 5
+
         letters_amount = defaultdict(int)
-        for c in correct_letters:
+        for c in self.correctLetters:
             letters_amount[remove_diacritics(c)] += 1
-        
-        for i in range(5):
-            plr_ltr = player_letters[i]
-            cr_ltr = correct_letters[i]
-            
-            if remove_diacritics(plr_ltr) == remove_diacritics(cr_ltr) :
-                    barvy[i] = Color.GREEN + cr_ltr + Color.RESET # se správnou diakritikou
-                    letters_amount[remove_diacritics(plr_ltr)] -= 1 # this character has been used
-                    
-        for i in range(5):
-            plr_ltr = player_letters[i]
-            cr_ltr = correct_letters[i]
-            
-            if remove_diacritics(plr_ltr) in letters_amount.keys() and letters_amount[remove_diacritics(plr_ltr)] >  0:
-                barvy[i] = Color.YELLOW + plr_ltr + Color.RESET
-                letters_amount[remove_diacritics(plr_ltr)] -= 1 # this character has been used
-            if barvy[i] == " ":
-                barvy[i] = plr_ltr
-        pokusy -= 1
-        
-    #prohra
-    if pokusy == 0:
-        print("Bohužel jsi prohrál. Hledané slovo bylo: {}".format(word))
-    #výhra
-    if remove_diacritics(player_word) == remove_diacritics(word):
-        print("Vyhrál jsi! Hledané slovo bylo {}".format(word))
-            
-def main():
-    
-    print_intro()
-    pocet = 20
-    print("Počet pokusů: {}".format(pocet))
-    a = input("Pro spuštění stiskni libovolnou klávesu.")
-    game(rnd_word(), pocet)
 
+        for i in range(5):
+            plr_ltr = self.player_letters[i]
+            cr_ltr = self.correctLetters[i]
 
-if __name__ == "__main__":
-    main()
+            if remove_diacritics(plr_ltr) == remove_diacritics(cr_ltr):
+                self.coloredLetters[i] = (
+                    Color.GREEN + cr_ltr + Color.RESET
+                )  # se správnou diakritikou
+                letters_amount[
+                    remove_diacritics(plr_ltr)
+                ] -= 1  # this character has been used
+
+        for i in range(5):
+            plr_ltr = self.player_letters[i]
+            cr_ltr = self.correctLetters[i]
+
+            if (
+                remove_diacritics(plr_ltr) in letters_amount.keys()
+                and letters_amount[remove_diacritics(plr_ltr)] > 0
+            ):
+                self.coloredLetters[i] = Color.YELLOW + plr_ltr + Color.RESET
+                letters_amount[
+                    remove_diacritics(plr_ltr)
+                ] -= 1  # this character has been used
+            if self.coloredLetters[i] == " ":
+                self.coloredLetters[i] = plr_ltr
+
+    def runGame(self):
+        while True:
+            time.sleep(1)
+            os.system("clear")
+            self.showStatistics()
+
+            self.playerGuess = self.getUserWord()
+
+            if self.winningCondition(self.playerGuess):
+                print("Vyhrál jsi!")
+                break
+
+            self.update()
+            self.updateColoredLetters()
+
+            self.attempts -= 1
+            if self.loseCondition():
+                print("Prohrál jsi!")
+
+    def rnd_word(self) -> str:
+        """Return a random czech word with 5 letters."""
+        with open("pouze5.txt", "r") as r:
+            seznam = r.readlines()
+            return random.choice(seznam).upper().strip()
+
+    def loseCondition(self) -> bool:
+        return self.attempts == 0
+
+    def winningCondition(self, guess: str) -> bool:
+        return remove_diacritics(guess) == remove_diacritics(self.correctWord)
+
+    def checkForWin(self):
+        if self.loseCondition():
+            print(
+                "Bohužel jsi prohrál. Hledané slovo bylo: {}".format(self.correctWord)
+            )
+        if self.winningCondition(self.playerGuess):
+            print("Vyhrál jsi! Hledané slovo bylo {}".format(self.correctWord))

@@ -18,11 +18,3 @@ translation_table = {
 def remove_diacritics(s: str) -> str:
     """Remove hooks and dashes from a word or letter."""
     return s.translate(translation_table)
-
-class inDict:
-    def __init__(self):
-        self.d = {}
-    def __getitem__(self, key):
-        return self.d[remove_diacritics(key)]
-    def __setitem__(self, key, val):
-        self.d[remove_diacritics(key)] = val
